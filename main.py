@@ -46,7 +46,7 @@ def home():
 
             <div class="card__precis">
                 <span class="card__preci card__preci--before">Writer : {r["author"]}</span>
-                <span class="card__preci card__preci--now">${r["price"]}.00</span>
+                <span class="card__preci card__preci--now">${r["price"]}</span>
                 <a href="#" class="card__icon">
                     <ion-icon name="cart-outline"></ion-icon>   
                 </a>
