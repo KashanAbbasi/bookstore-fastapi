@@ -36,20 +36,21 @@ def home():
         ft += f"""
         <article class="card">
             <a href="{r["link"]}">
-                <div class="card__img">
-                    <img src="{r["refrence"]}" alt="">
-                </div>
-                <div class="card__name">
-                    <p>{r["tittle"]}</p>
+                <div class="card__img-container">
+                    <img src="{r["refrence"]}" alt="{r["tittle"]}" class="card__img">
                 </div>
             </a>
 
-            <div class="card__precis">
-                <span class="card__preci card__preci--before">Writer : {r["author"]}</span>
-                <span class="card__preci card__preci--now">${r["price"]}</span>
-                <a href="#" class="card__icon">
-                    <ion-icon name="cart-outline"></ion-icon>   
-                </a>
+            <div class="card__content">
+                <h3 class="card__title">{r["tittle"]}</h3>
+                <p class="card__author">by {r["author"]}</p>
+                
+                <div class="card__footer">
+                    <span class="card__price">${r["price"]}</span>
+                    <button class="card__btn-cart" title="Add to cart">
+                        <ion-icon name="cart-outline"></ion-icon>   
+                    </button>
+                </div>
             </div>
         </article>
         """
