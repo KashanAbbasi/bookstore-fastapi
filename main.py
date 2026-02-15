@@ -23,7 +23,8 @@ def home():
 
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link FROM books")
+    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link, id FROM books")
+
     rows = cur.fetchall()
     cur.close()
     conn.close()
