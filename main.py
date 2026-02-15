@@ -1,33 +1,30 @@
-from fastapi import FastAPI, File, Form
+from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
-import csv
+import psycopg2
 import os
-# import shutil
 
 app = FastAPI()
-CSV_FILE = "books.csv"
 
+# Vercel me ye environment variable se aayega
+DATABASE_URL = os.getenv("DATABASE_URL")  # set this in Vercel
 
-if not os.path.exists(CSV_FILE):
-    with open(CSV_FILE, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(
-            ["author", "tittle", "refrence", "price", "publisher", "pub_year", "link"]
-        )
+def get_connection():
+    return psycopg2.connect(DATABASE_URL)
 
 
 @app.get("/", response_class=HTMLResponse)
 def home():
     name = "ABBASI BOOK STORE"
 
-    # HTML read
     with open("index.html", "r", encoding="utf-8") as f:
         html = f.read()
 
-    # CSV read (NO f.read())
-    with open("books.csv", "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link FROM books")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
     html = html.replace("{{name}}", name)
 
@@ -35,20 +32,20 @@ def home():
     for r in rows:
         ft += f"""
         <article class="card">
-            <a href="{r["link"]}">
+            <a href="{r[6]}">
                 <div class="card__img-container">
-                    <img src="{r["refrence"]}" alt="{r["tittle"]}" class="card__img">
+                    <img src="{r[2]}" alt="{r[1]}" class="card__img">
                 </div>
             </a>
 
             <div class="card__content">
-                <h3 class="card__title">{r["tittle"]}</h3>
-                <p class="card__author">by {r["author"]}</p>
+                <h3 class="card__title">{r[1]}</h3>
+                <p class="card__author">by {r[0]}</p>
                 
                 <div class="card__footer">
-                    <span class="card__price">${r["price"]}</span>
-                    <button class="card__btn-cart" title="Add to cart">
-                        <ion-icon name="cart-outline"></ion-icon>   
+                    <span class="card__price">${r[3]}</span>
+                    <button class="card__btn-cart">
+                        Add to cart
                     </button>
                 </div>
             </div>
@@ -67,51 +64,56 @@ def upload():
         html = File2.read()
 
     html = html.replace("{{name}}", name)
-
     return html
 
 
 @app.post("/submit")
-async def submit(
+def submit(
     author: str = Form(...),
     tittle: str = Form(...),
     refrence: str = Form(...),
     price: float = Form(...),
     publisher: str = Form(...),
     pub_year: str = Form(...),
-    link: str = File(...),
+    link: str = Form(...),
 ):
-    # if not pdf.filename.endswith(".pdf"):
-    #     return {"error": "Only PDF allowed"}
 
-    # pdf_path = os.path.join(UPLOAD_DIR, pdf.filename)
-    # with open(pdf_path, "wb") as buffer:
-    #     shutil.copyfileobj(pdf.file, buffer)
+    conn = get_connection()
+    cur = conn.cursor()
 
-    with open(CSV_FILE, "a", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow([author, tittle, refrence, price, publisher, pub_year, link])
+    cur.execute("""
+        INSERT INTO books (author, tittle, refrence, price, publisher, pub_year, link)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (author, tittle, refrence, price, publisher, pub_year, link))
 
-    return {"status": "success", "msg": "Book & PDF saved successfully ✅"}
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return {"status": "success", "msg": "Book saved successfully ✅"}
 
 
 @app.get("/data", response_class=HTMLResponse)
 def view_data():
-    with open(CSV_FILE, "r") as file:
-        reader = csv.DictReader(file)
-        rows = list(reader)
+
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link FROM books")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
     tr = ""
     for r in rows:
         tr += f"""
         <tr>
-            <td>{r["author"]}</td>
-            <td>{r["tittle"]}</td>
-            <td>{r["refrence"]}</td>
-            <td>{r["price"]}</td>
-            <td>{r["publisher"]}</td>
-            <td>{r["pub_year"]}</td>
-            <td><a href="{r["link"]}">PDF</a></td>
+            <td>{r[0]}</td>
+            <td>{r[1]}</td>
+            <td>{r[2]}</td>
+            <td>{r[3]}</td>
+            <td>{r[4]}</td>
+            <td>{r[5]}</td>
+            <td><a href="{r[6]}">PDF</a></td>
         </tr>
         """
 
@@ -121,7 +123,7 @@ def view_data():
 <h2 style="text-align:center;">All Books</h2>
 <table border="1" cellpadding="8" style="margin:auto;">
 <tr>
-<th>Author</th><th>tittle</th><th>refrence</th><th>Price</th>
+<th>Author</th><th>Title</th><th>Reference</th><th>Price</th>
 <th>Publisher</th><th>Year</th><th>PDF</th>
 </tr>
 {tr}
@@ -129,8 +131,3 @@ def view_data():
 </body>
 </html>
 """
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=5001, reload=True)
