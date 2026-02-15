@@ -18,7 +18,7 @@ if not os.path.exists(CSV_FILE):
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    name = "ABBASI BOOKS STORE"
+    name = "ABBASI BOOK STORE"
 
     # HTML read
     with open("index.html", "r", encoding="utf-8") as f:
