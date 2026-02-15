@@ -2,8 +2,10 @@
 name = "vercel-fastapi-starter"
 version = "0.1.0"
 requires-python = ">=3.10"
+
 dependencies = [
   "fastapi>=0.121.0",
   "uvicorn>=0.34.0",
   "python-multipart>=0.0.5",
+  "psycopg2-binary>=2.9.9"
 ]
