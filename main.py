@@ -6,11 +6,13 @@ import os
 app = FastAPI()
 
 # Vercel me ye environment variable se aayega
-DATABASE_URL = os.getenv("postgresql://postgres:t3Cq8l1TK5kjjgau@db.grwsqddifkdhupfkxbrb.supabase.co:5432/postgres")  # set this in Vercel
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_connection():
-    return psycopg2.connect(DATABASE_URL)
-
+    return psycopg2.connect(
+        DATABASE_URL,
+        sslmode="require"   # IMPORTANT
+    )
 
 @app.get("/", response_class=HTMLResponse)
 def home():
