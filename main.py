@@ -1,32 +1,48 @@
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, File, Form
 from fastapi.responses import HTMLResponse
-import psycopg2
+import sqlite3
 import os
+# import shutil
 
 app = FastAPI()
+DB_FILE = "books.db"
 
-# Vercel me ye environment variable se aayega
-DATABASE_URL = os.getenv("DATABASE_URL")
 
-def get_connection():
-    return psycopg2.connect(
-        DATABASE_URL,
-        sslmode="require"   # IMPORTANT
-    )
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS books (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            author TEXT,
+            tittle TEXT,
+            refrence TEXT,
+            price REAL,
+            publisher TEXT,
+            pub_year TEXT,
+            link TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    name = "ABBASI BOOK STORE"
+    name = "ABBASI BOOKS STORE"
 
+    # HTML read
     with open("index.html", "r", encoding="utf-8") as f:
         html = f.read()
 
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link, id FROM books")
-
-    rows = cur.fetchall()
-    cur.close()
+    # Database read
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM books")
+    rows = cursor.fetchall()
     conn.close()
 
     html = html.replace("{{name}}", name)
@@ -35,22 +51,21 @@ def home():
     for r in rows:
         ft += f"""
         <article class="card">
-            <a href="{r[6]}">
-                <div class="card__img-container">
-                    <img src="{r[2]}" alt="{r[1]}" class="card__img">
+            <a href="{r["link"]}">
+                <div class="card__img">
+                    <img src="{r["refrence"]}" alt="">
+                </div>
+                <div class="card__name">
+                    <p>{r["tittle"]}</p>
                 </div>
             </a>
 
-            <div class="card__content">
-                <h3 class="card__title">{r[1]}</h3>
-                <p class="card__author">by {r[0]}</p>
-                
-                <div class="card__footer">
-                    <span class="card__price">${r[3]}</span>
-                    <button class="card__btn-cart">
-                        Add to cart
-                    </button>
-                </div>
+            <div class="card__precis">
+                <span class="card__preci card__preci--before">Writer : {r["author"]}</span>
+                <span class="card__preci card__preci--now">${r["price"]}.00</span>
+                <a href="#" class="card__icon">
+                    <ion-icon name="cart-outline"></ion-icon>   
+                </a>
             </div>
         </article>
         """
@@ -67,56 +82,59 @@ def upload():
         html = File2.read()
 
     html = html.replace("{{name}}", name)
+
     return html
 
 
 @app.post("/submit")
-def submit(
+async def submit(
     author: str = Form(...),
     tittle: str = Form(...),
     refrence: str = Form(...),
     price: float = Form(...),
     publisher: str = Form(...),
     pub_year: str = Form(...),
-    link: str = Form(...),
+    link: str = File(...),
 ):
+    # if not pdf.filename.endswith(".pdf"):
+    #     return {"error": "Only PDF allowed"}
 
-    conn = get_connection()
-    cur = conn.cursor()
+    # pdf_path = os.path.join(UPLOAD_DIR, pdf.filename)
+    # with open(pdf_path, "wb") as buffer:
+    #     shutil.copyfileobj(pdf.file, buffer)
 
-    cur.execute("""
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
         INSERT INTO books (author, tittle, refrence, price, publisher, pub_year, link)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (author, tittle, refrence, price, publisher, pub_year, link))
-
     conn.commit()
-    cur.close()
     conn.close()
 
-    return {"status": "success", "msg": "Book saved successfully ✅"}
+    return {"status": "success", "msg": "Book & PDF saved successfully ✅"}
 
 
 @app.get("/data", response_class=HTMLResponse)
 def view_data():
-
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT author, tittle, refrence, price, publisher, pub_year, link FROM books")
-    rows = cur.fetchall()
-    cur.close()
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM books")
+    rows = cursor.fetchall()
     conn.close()
 
     tr = ""
     for r in rows:
         tr += f"""
         <tr>
-            <td>{r[0]}</td>
-            <td>{r[1]}</td>
-            <td>{r[2]}</td>
-            <td>{r[3]}</td>
-            <td>{r[4]}</td>
-            <td>{r[5]}</td>
-            <td><a href="{r[6]}">PDF</a></td>
+            <td>{r["author"]}</td>
+            <td>{r["tittle"]}</td>
+            <td>{r["refrence"]}</td>
+            <td>{r["price"]}</td>
+            <td>{r["publisher"]}</td>
+            <td>{r["pub_year"]}</td>
+            <td><a href="{r["link"]}">PDF</a></td>
         </tr>
         """
 
@@ -126,7 +144,7 @@ def view_data():
 <h2 style="text-align:center;">All Books</h2>
 <table border="1" cellpadding="8" style="margin:auto;">
 <tr>
-<th>Author</th><th>Title</th><th>Reference</th><th>Price</th>
+<th>Author</th><th>tittle</th><th>refrence</th><th>Price</th>
 <th>Publisher</th><th>Year</th><th>PDF</th>
 </tr>
 {tr}
